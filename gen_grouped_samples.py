@@ -58,14 +58,16 @@ def create_samples(N=256, voxel_origin=[0, 0, 0], cube_length=2.0):
 
     return samples.unsqueeze(0), voxel_origin, voxel_size
 
-def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torch.device('cuda'), label_pool='', outdir='', num_groups=1000, num_samples=10):
+def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torch.device('cuda'), label_pool='', outdir='', num_groups=1000, num_samples=10, 
+                          pitch=0.0, yaw=0.0, appearance=0.0, exp_rate=0.0):
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
 
     cam_pivot = torch.tensor(G.rendering_kwargs.get('avg_camera_pivot', [0, 0, 0]), device=device)
     cam_radius = G.rendering_kwargs.get('avg_camera_radius', 1.0)
-    conditioning_cam2world_pose = LookAtPoseSampler.sample(np.pi/2, np.pi/2, cam_pivot, radius=cam_radius, device=device)
+    hair = 16 # Hair
+    conditioning_cam2world_pose = LookAtPoseSampler.sample(np.pi/hair, np.pi/hair, cam_pivot, radius=cam_radius, device=device)
 
     feature_dim = G.rendering_kwargs.get('feature_dim', 0)
     if cfg == 'ffhq':
@@ -76,7 +78,7 @@ def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torc
     frame_3dmms = np.load(label_pool)
 
     for frame_idx in tqdm(range(num_groups)):
-        param_seed = np.random.randint(0, len(frame_3dmms))
+        param_seed = int(len(frame_3dmms) * appearance) # Appearance
         frame_3dmm = frame_3dmms[param_seed, :]
 
         frame_3dmm = torch.from_numpy(frame_3dmm).to(device).float()
@@ -91,18 +93,19 @@ def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torc
             os.mkdir(img_outdir)
 
         for sample_idx in range(num_samples):
-            exp_seed =  np.random.randint(0, len(frame_3dmms))         
+            exp_seed = int(len(frame_3dmms) * exp_rate) # Facial Expression
+            print("exp seed: ", exp_seed)       
             exp = np.copy(frame_3dmms[exp_seed, :])
             
             # add random jaw motions
-            exp[..., -3] += np.random.normal() * 0.1
-            exp[..., -2] += np.random.normal() * 0.15
-            exp[..., -1] += np.random.normal() * 0.1
+            exp[..., -3] += 0 * 0.1
+            exp[..., -2] += 0 * 0.15
+            exp[..., -1] += 1 * 0.1 # Mounth Open
             new_frame_3dmm = torch.from_numpy(exp).to(device).float()
             new_frame_3dmm[..., 25:125] = shape
                 
-            pitch = 0.1 * np.random.uniform(-1, 1)
-            yaw = 0.25 * np.random.uniform(-1, 1)
+            # pitch = 0
+            # yaw = 0
 
             cam2world_pose = LookAtPoseSampler.sample(3.14/2 + yaw,
                                                 3.14/2 -0.05 + pitch,
@@ -159,6 +162,11 @@ def parse_tuple(s: Union[str, Tuple[int,int]]) -> Tuple[int, int]:
 @click.option('--num-groups', 'num_groups', type=int, help='number of groups', default=1000, show_default=True)
 @click.option('--num-samples', 'num_samples', type=int, help='number of samples per group', default=10, show_default=True)
 
+@click.option('--pitch', 'pitch', type=float, help='Pitch', default=0.0, show_default=True)
+@click.option('--yaw', 'yaw', type=float, help='Yaw', default=0.0, show_default=True)
+@click.option('--appearance', 'appearance', type=float, help='Appearance', default=0.0, show_default=True)
+@click.option('--exp', 'exp_rate', type=float, help='Facial Expression', default=0.0, show_default=True)
+
 def generate_images(
     network_pkl: str,
     truncation_psi: float,
@@ -170,6 +178,10 @@ def generate_images(
     label_pool: str,
     num_groups: int,
     num_samples: int,
+    pitch,
+    yaw,
+    appearance,
+    exp_rate,
 ):
     """Render a latent vector interpolation video.
 
@@ -210,7 +222,8 @@ def generate_images(
     if truncation_psi == 1.0:
         truncation_cutoff = 14 # no truncation so doesn't matter where we cutoff
 
-    generate_group_images(G=G, psi=truncation_psi, truncation_cutoff=truncation_cutoff, cfg=cfg, label_pool=label_pool, outdir=outdir, num_groups=num_groups, num_samples=num_samples)
+    generate_group_images(G=G, psi=truncation_psi, truncation_cutoff=truncation_cutoff, cfg=cfg, label_pool=label_pool, outdir=outdir, num_groups=num_groups, num_samples=num_samples, 
+        pitch=pitch, yaw=yaw, appearance=appearance, exp_rate=exp_rate)
  
 if __name__ == "__main__":
     generate_images() # pylint: disable=no-value-for-parameter
