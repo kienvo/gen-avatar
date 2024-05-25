@@ -1,0 +1,97 @@
+extends layout
+
+block content
+	.d-flex.flex-row.justify-content-center
+		.col-xl-5.col-lg-8.col-sm-12
+			.row
+				.col-8
+					.h1.display-1
+						del.me-3 GenAI
+						br
+						= title
+				.col-4 
+					img(src="/images/hosted-demo-link-qr.png"  style='max-width: 100%; height: auto;')
+				p.lead
+					| Welcome to #{title}. 
+					br
+					| A quick-cooked app based on 
+					a(href='https://github.com/hongyixu37/omniavatar-proj') OmniAvatar.
+				p.lead
+					a(href='https://github.com/kienvo/gen-avatar') Here
+					|  is the code for this app. It's a quick-cooking code, not a fancy project, 
+					| do not expect too much! 
+				p.lead
+					b.fw-bold Note: 
+					| As the original author of OmniAvatar did not release code with a license, 
+					| this repo will be closed to private soon. 
+					| The aim of this project is to  produce an application that applied the new CV 
+					| research as required as Final Term evaluation of Computer Vision and 
+					| Applications course at Industrial University of Ho Chi Minh City.
+				
+				.h4.display-4 How to use?
+				p.lead.mb-5 
+					| Adjust property below,
+					br
+					| then click button "Generate Avatar" and wait for the server to create a 
+					| new avatar.
+				
+				#canvas-container.card.mb-5.px-0
+					img#canvas.card-img-top(src="/images/genai-meme.png"  style='max-width: 100%; height: auto;')
+					.text-center.mt-5#imgspinner(style='display: none;')
+						.spinner-border(role='status')
+							span.sr-only 
+						br
+						| Generating...
+			.row
+				label(for="customRange").form-label Pitch
+				input(type="range" min="-1" max="1" step="0.001").form-range#pitch
+
+				label(for="customRange").form-label Yaw
+				input(type="range" min="-1" max="1" step="0.001").form-range#yaw
+				
+				label(for="customRange").form-label Appearance
+				input(type="range" min="0" max="1" step="0.001").form-range#appearance
+				
+				label(for="customRange").form-label Expression
+				input(type="range" min="-1" max="1" step="0.001").form-range#exp
+
+				button#loadbtn(type='button').btn.btn-primary.mt-5 Generate a new Avatar
+	
+	
+	script.
+		//- load a meme here
+		const btn = document.getElementById("loadbtn");
+		const img = document.getElementById("canvas");
+		const imgspinner = document.getElementById("imgspinner");
+		//- const imgcon = document.getElementById("canvas-container");
+		const spinner = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					<span class="sr-only">Loading...</span>`;
+
+		btn.addEventListener("click", async function () {
+			console.log("generating img");
+			btn.disabled = true;
+			tmp = btn.innerHTML;
+			btn.innerHTML = spinner;
+			imgspinner.style.display= '';
+			img.style.display= 'none';
+
+			fetch('/api?'+
+				'pitch='+ document.getElementById("pitch").value
+				+'&yaw='+ document.getElementById("yaw").value
+				+'&appearance='+ document.getElementById("appearance").value
+				+'&exp='+ document.getElementById("exp").value
+			)
+			.then(response => response.blob())
+			.then(blob => {
+				const url = URL.createObjectURL(blob);
+				img.src = url;
+				console.log(url);
+				console.log("img generated");
+
+				btn.disabled = false;
+				btn.innerHTML = tmp;
+				img.style.display= '';
+				imgspinner.style.display= 'none';
+
+			});
+		});

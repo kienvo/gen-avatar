@@ -59,7 +59,7 @@ def create_samples(N=256, voxel_origin=[0, 0, 0], cube_length=2.0):
     return samples.unsqueeze(0), voxel_origin, voxel_size
 
 def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torch.device('cuda'), label_pool='', outdir='', num_groups=1000, num_samples=10, 
-                          pitch=0.0, yaw=0.0, appearance=0.0, exp_rate=0.0):
+                          pitch=0.0, yaw=0.0, appearance=0.0, exp_rate=0.0, filename='output'):
 
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -113,10 +113,10 @@ def generate_group_images(G, psi=1, truncation_cutoff=14, cfg='FFHQ',device=torc
 
             conditioning_params = torch.cat([cam2world_pose.reshape(-1, 16), intrinsics.reshape(-1, 9),new_frame_3dmm[...,-feature_dim:].reshape(-1, feature_dim)], 1)
 
-            out = G.synthesis(ws, conditioning_params.repeat([len(ws), 1]), noise_mode='const')
+            out = G.    synthesis(ws, conditioning_params.repeat([len(ws), 1]), noise_mode='const')
             img = out['image'][0].permute(1, 2, 0)
             img = (img * 127.5 + 128).clamp(0, 255).to(torch.uint8)
-            output_path = os.path.join(img_outdir, 'seed%06d_%06d_%02d.png' % (param_seed, exp_seed, sample_idx))
+            output_path = os.path.join(img_outdir, filename+'.png')
             PIL.Image.fromarray(img.cpu().numpy(), 'RGB').save(output_path)
 
 def parse_range(s: Union[str, List[int]]) -> List[int]:
@@ -166,6 +166,7 @@ def parse_tuple(s: Union[str, Tuple[int,int]]) -> Tuple[int, int]:
 @click.option('--yaw', 'yaw', type=float, help='Yaw', default=0.0, show_default=True)
 @click.option('--appearance', 'appearance', type=float, help='Appearance', default=0.0, show_default=True)
 @click.option('--exp', 'exp_rate', type=float, help='Facial Expression', default=0.0, show_default=True)
+@click.option('--filename', 'filename', type=str, help='Output filename', default='output', show_default=True)
 
 def generate_images(
     network_pkl: str,
@@ -182,6 +183,7 @@ def generate_images(
     yaw,
     appearance,
     exp_rate,
+    filename,
 ):
     """Render a latent vector interpolation video.
 
@@ -223,9 +225,10 @@ def generate_images(
         truncation_cutoff = 14 # no truncation so doesn't matter where we cutoff
 
     generate_group_images(G=G, psi=truncation_psi, truncation_cutoff=truncation_cutoff, cfg=cfg, label_pool=label_pool, outdir=outdir, num_groups=num_groups, num_samples=num_samples, 
-        pitch=pitch, yaw=yaw, appearance=appearance, exp_rate=exp_rate)
+        pitch=pitch, yaw=yaw, appearance=appearance, exp_rate=exp_rate, filename=filename)
  
 if __name__ == "__main__":
+    torch.backends.cuda.matmul.allow_tf32 = True
     generate_images() # pylint: disable=no-value-for-parameter
 
 
